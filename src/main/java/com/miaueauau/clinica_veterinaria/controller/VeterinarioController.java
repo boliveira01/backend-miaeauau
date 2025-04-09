@@ -2,9 +2,11 @@ package com.miaueauau.clinica_veterinaria.controller;
 
 import com.miaueauau.clinica_veterinaria.model.Veterinario;
 import com.miaueauau.clinica_veterinaria.service.VeterinarioService;
+import jakarta.validation.Valid; // Importe esta classe
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult; // E esta classe
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,7 +33,10 @@ public class VeterinarioController {
     }
 
     @PostMapping
-    public ResponseEntity<Veterinario> salvarVeterinario(@RequestBody Veterinario veterinario) {
+    public ResponseEntity<Veterinario> salvarVeterinario(@Valid @RequestBody Veterinario veterinario, BindingResult result) {
+        if (result.hasErrors()) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
         Veterinario novoVeterinario = veterinarioService.salvarVeterinario(veterinario);
         return new ResponseEntity<>(novoVeterinario, HttpStatus.CREATED);
     }

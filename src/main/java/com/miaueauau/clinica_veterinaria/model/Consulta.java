@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "consultas")
@@ -34,6 +35,16 @@ public class Consulta {
     private String diagnostico;
 
     private String tratamento;
+
+    private boolean confirmada;
+
+    @ManyToMany
+    @JoinTable(
+            name = "consulta_procedimento",
+            joinColumns = @JoinColumn(name = "consulta_id"),
+            inverseJoinColumns = @JoinColumn(name = "procedimento_id")
+    )
+    private List<Procedimento> procedimentos;
 
     // Podemos adicionar mais informações sobre a consulta no futuro
 }

@@ -8,27 +8,26 @@ import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "disponibilidades_veterinarios")
+@Table(name = "exames")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DisponibilidadeVeterinario {
+public class Exame {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "veterinario_id", nullable = false)
-    private Veterinario veterinario;
+    @JoinColumn(name = "consulta_prontuario_id", nullable = false)
+    private ConsultaProntuario consultaProntuario;
 
     @Column(nullable = false)
-    private LocalDateTime inicio;
+    private String tipo; // Ex: "Sangue", "Urina", "Raio-X"
 
-    @Column(nullable = false)
-    private LocalDateTime fim;
+    private String resultado;
 
-    private String observacoes;
+    private LocalDateTime dataRealizacao;
 
-    // Outros campos relevantes, se necessário
+    // Outros campos relevantes para o exame
 }

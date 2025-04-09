@@ -1,8 +1,12 @@
 package com.miaueauau.clinica_veterinaria.repository;
 
 import com.miaueauau.clinica_veterinaria.model.Consulta;
+import com.miaueauau.clinica_veterinaria.model.Veterinario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
@@ -11,4 +15,6 @@ public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
     // Por exemplo:
     // List<Consulta> findByPaciente(Paciente paciente);
     // List<Consulta> findByVeterinarioAndDataHoraBetween(Veterinario veterinario, LocalDateTime inicio, LocalDateTime fim);
+
+    List<Consulta> findByVeterinarioAndDataHoraBetween(Veterinario veterinario, LocalDateTime inicio, LocalDateTime fim);
 }
