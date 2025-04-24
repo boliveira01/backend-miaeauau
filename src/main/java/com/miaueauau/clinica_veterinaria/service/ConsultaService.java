@@ -1,23 +1,29 @@
 package com.miaueauau.clinica_veterinaria.service;
-import com.miaueauau.clinica_veterinaria.model.Procedimento;
-import com.miaueauau.clinica_veterinaria.model.DisponibilidadeVeterinario;
-import com.miaueauau.clinica_veterinaria.model.Consulta;
-import com.miaueauau.clinica_veterinaria.model.Veterinario;
+import com.miaueauau.clinica_veterinaria.model.*;
 import com.miaueauau.clinica_veterinaria.repository.ConsultaRepository;
 import com.miaueauau.clinica_veterinaria.repository.DisponibilidadeVeterinarioRepository;
 import com.miaueauau.clinica_veterinaria.service.VeterinarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ConsultaService {
 
     @Autowired
     private ConsultaRepository consultaRepository;
+
+    // ... outros métodos ...
+
+    public List<Consulta> buscarConsultasPorPaciente(Paciente paciente) {
+        return consultaRepository.findByPaciente(paciente);
+    }
 
     @Autowired
     private VeterinarioService veterinarioService;
@@ -40,6 +46,25 @@ public class ConsultaService {
         } else {
             throw new IllegalArgumentException("Veterinário não disponível para a duração total da consulta.");
         }
+    }
+
+
+    public Map<LocalDate, Double> calcularFaturamentoPorPeriodo(LocalDate dataInicio, LocalDate dataFim) {
+        LocalDateTime inicioDoPeriodo = dataInicio.atStartOfDay();
+        LocalDateTime fimDoPeriodo = dataFim.plusDays(1).atStartOfDay(); // Inclui todo o dia da dataFim
+
+        List<Consulta> consultasNoPeriodo = consultaRepository
+                .findByDataHoraBetween(inicioDoPeriodo, fimDoPeriodo);
+
+        return consultasNoPeriodo.stream()
+                .collect(Collectors.groupingBy(
+                        consulta -> consulta.getDataHora().toLocalDate(),
+                        Collectors.summingDouble(consulta -> {
+                            // Lógica para determinar o valor da consulta
+                            // Por enquanto, vamos assumir que cada consulta tem um valor fixo de 50.0
+                            return 50.0;
+                        })
+                ));
     }
 
     public void deletarConsulta(Long id) {
