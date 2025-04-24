@@ -33,5 +33,8 @@ public class Paciente {
     @JoinColumn(name = "tutor_id", nullable = false)
     private Tutor tutor;
 
+    public void setId(Long id) {
+    }
+
     // Podemos adicionar mais campos relevantes para o paciente no futuro
 }
