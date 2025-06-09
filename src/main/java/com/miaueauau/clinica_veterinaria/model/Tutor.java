@@ -1,11 +1,14 @@
 package com.miaueauau.clinica_veterinaria.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonManagedReference; // <-- NOVO IMPORT
 
 @Entity
 @Table(name = "tutores")
@@ -30,7 +33,15 @@ public class Tutor {
     @Column(nullable = false)
     private String telefone;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
     private LocalDate dataNascimento;
 
-    // Podemos adicionar mais campos relevantes para o tutor no futuro
+    @OneToMany(mappedBy = "tutor",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY) // <-- Adicionei FetchType.LAZY para melhor performance, se não tiver
+    @JsonManagedReference // <-- ADICIONE ESTA ANOTAÇÃO AQUI
+    private List<Paciente> pacientes = new ArrayList<>();
 }

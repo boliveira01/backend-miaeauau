@@ -1,6 +1,5 @@
 package com.miaueauau.clinica_veterinaria.controller;
 
-// ... outras importações ...
 import com.miaueauau.clinica_veterinaria.model.Consulta;
 import com.miaueauau.clinica_veterinaria.model.Paciente;
 import com.miaueauau.clinica_veterinaria.service.ConsultaService;
@@ -13,20 +12,21 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+// import java.util.Optional; // Já não precisamos mais do Optional neste trecho específico
 
 @RestController
 @RequestMapping("/api/relatorios")
 public class RelatorioController {
 
     private final PacienteService pacienteService;
-    private final ConsultaService consultaService; // Precisaremos do ConsultaService
+    private final ConsultaService consultaService;
 
     @Autowired
     public RelatorioController(PacienteService pacienteService, ConsultaService consultaService) {
         this.pacienteService = pacienteService;
         this.consultaService = consultaService;
     }
+
     @GetMapping("/faturamento")
     public ResponseEntity<Map<LocalDate, Double>> obterFaturamentoPorPeriodo(
             @RequestParam(value = "dataInicio") LocalDate dataInicio,
@@ -43,12 +43,9 @@ public class RelatorioController {
 
     @GetMapping("/pacientes/{pacienteId}/consultas")
     public ResponseEntity<List<Consulta>> historicoConsultasPorPaciente(@PathVariable Long pacienteId) {
-        Optional<Paciente> paciente = pacienteService.buscarPacientePorId(pacienteId);
-        if (paciente.isPresent()) {
-            List<Consulta> consultas = consultaService.buscarConsultasPorPaciente(paciente.get());
-            return new ResponseEntity<>(consultas, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        // CORRIGIDO: Passando o 'pacienteId' (Long) diretamente para o serviço
+        // O serviço já é responsável por buscar o paciente pelo ID e lançar erro se não encontrar.
+        List<Consulta> consultas = consultaService.buscarConsultasPorPaciente(pacienteId);
+        return new ResponseEntity<>(consultas, HttpStatus.OK);
     }
 }

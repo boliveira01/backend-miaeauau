@@ -27,35 +27,45 @@ public class FuncionarioController {
     public ResponseEntity<Funcionario> buscarFuncionarioPorId(@PathVariable Long id) {
         Optional<Funcionario> funcionario = funcionarioService.buscarFuncionarioPorId(id);
         return funcionario.map(f -> new ResponseEntity<>(f, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND)); // Retorna 404 se não encontrado
     }
 
     @PostMapping
     public ResponseEntity<Funcionario> salvarFuncionario(@RequestBody Funcionario funcionario) {
-        Funcionario novoFuncionario = funcionarioService.salvarFuncionario(funcionario);
-        return new ResponseEntity<>(novoFuncionario, HttpStatus.CREATED);
+        try {
+            Funcionario novoFuncionario = funcionarioService.salvarFuncionario(funcionario);
+            return new ResponseEntity<>(novoFuncionario, HttpStatus.CREATED); // Retorna 201 Created
+        } catch (IllegalArgumentException e) {
+            // Captura exceções como "Já existe um funcionário com este e-mail."
+            return new ResponseEntity<>(HttpStatus.CONFLICT); // Retorna 409 Conflict
+        } catch (Exception e) {
+            // Captura outras exceções inesperadas ao salvar (ex: campos inválidos)
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST); // Retorna 400 Bad Request
+        }
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Funcionario> atualizarFuncionario(@PathVariable Long id, @RequestBody Funcionario funcionarioAtualizado) {
-        Optional<Funcionario> funcionarioExistente = funcionarioService.buscarFuncionarioPorId(id);
-        if (funcionarioExistente.isPresent()) {
-            funcionarioAtualizado.setId(id);
-            Funcionario funcionarioSalvo = funcionarioService.salvarFuncionario(funcionarioAtualizado);
-            return new ResponseEntity<>(funcionarioSalvo, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        try {
+            Funcionario funcionarioSalvo = funcionarioService.atualizarFuncionario(id, funcionarioAtualizado);
+            return new ResponseEntity<>(funcionarioSalvo, HttpStatus.OK); // Retorna 200 OK
+        } catch (IllegalArgumentException e) { // <-- AGORA ESTÁ NA ORDEM CORRETA: ESPECÍFICO PRIMEIRO
+            // Captura exceções de validação, como e-mail já existente para outro funcionário
+            return new ResponseEntity<>(HttpStatus.CONFLICT); // Retorna 409 Conflict
+        } catch (RuntimeException e) { // <-- MAIS GENÉRICO DEPOIS
+            // Captura exceções como "Funcionário não encontrado com o ID: "
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND); // Retorna 404 Not Found
         }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarFuncionario(@PathVariable Long id) {
-        Optional<Funcionario> funcionarioExistente = funcionarioService.buscarFuncionarioPorId(id);
-        if (funcionarioExistente.isPresent()) {
+        try {
             funcionarioService.deletarFuncionario(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT); // Retorna 204 No Content
+        } catch (IllegalArgumentException e) {
+            // Captura exceções como "Funcionário com ID X não encontrado para deleção."
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND); // Retorna 404 Not Found
         }
     }
 }

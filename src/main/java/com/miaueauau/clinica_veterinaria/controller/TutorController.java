@@ -32,29 +32,36 @@ public class TutorController {
 
     @PostMapping
     public ResponseEntity<Tutor> salvarTutor(@RequestBody Tutor tutor) {
-        Tutor novoTutor = tutorService.salvarTutor(tutor);
-        return new ResponseEntity<>(novoTutor, HttpStatus.CREATED);
+        try {
+            Tutor novoTutor = tutorService.salvarTutor(tutor);
+            return new ResponseEntity<>(novoTutor, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Tutor> atualizarTutor(@PathVariable Long id, @RequestBody Tutor tutorAtualizado) {
-        Optional<Tutor> tutorExistente = tutorService.buscarTutorPorId(id);
-        if (tutorExistente.isPresent()) {
-            tutorAtualizado.setId(id);
-            Tutor tutorSalvo = tutorService.salvarTutor(tutorAtualizado);
+        try {
+            Tutor tutorSalvo = tutorService.atualizarTutor(id, tutorAtualizado);
             return new ResponseEntity<>(tutorSalvo, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (IllegalArgumentException e) { // <-- MUDOU PARA CIMA: CAPTURA PRIMEIRO AS VALIDAÇÕES ESPECÍFICAS
+            // Captura exceções de validação, como CPF/e-mail já existente para outro tutor
+            return new ResponseEntity<>(HttpStatus.CONFLICT); // Retorna 409 Conflict
+        } catch (RuntimeException e) { // <-- MUDOU PARA BAIXO: CAPTURA EXCEÇÕES GENÉRICAS DE RUNTIME
+            // Captura exceções como "Tutor não encontrado"
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND); // Retorna 404 Not Found
         }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarTutor(@PathVariable Long id) {
-        Optional<Tutor> tutorExistente = tutorService.buscarTutorPorId(id);
-        if (tutorExistente.isPresent()) {
+        try {
             tutorService.deletarTutor(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } else {
+        } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }

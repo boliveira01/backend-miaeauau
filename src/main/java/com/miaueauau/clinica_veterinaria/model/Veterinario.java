@@ -1,11 +1,10 @@
 package com.miaueauau.clinica_veterinaria.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonManagedReference; // <-- NOVO IMPORT
 
 import java.util.List;
 
@@ -17,23 +16,34 @@ import java.util.List;
 public class Veterinario {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "funcionario_id")
     private Long id;
 
-    @NotBlank(message = "O nome é obrigatório")
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "funcionario_id")
+    private Funcionario funcionario;
+
+    @Column(nullable = false)
     private String nome;
 
-    @NotBlank(message = "O CRMV é obrigatório")
     @Column(nullable = false, unique = true)
     private String crmv;
 
-    @NotBlank(message = "A especialidade é obrigatória")
-    @Size(max = 255, message = "A especialidade não pode ter mais de 255 caracteres")
+    @Column(nullable = false)
+    private String telefone;
+
+    @Column(nullable = false)
     private String especialidade;
 
-    @OneToMany(mappedBy = "veterinario")
-    private List<Consulta> consultas;
+    @Column(nullable = false, unique = true)
+    private String email;
 
-    @OneToMany(mappedBy = "veterinario", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "veterinario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference // <-- ADICIONE ESTA ANOTAÇÃO AQUI
     private List<DisponibilidadeVeterinario> disponibilidades;
+
+    @OneToMany(mappedBy = "veterinario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference // <-- ADICIONE ESTA ANOTAÇÃO AQUI
+    private List<Consulta> consultas;
 }
