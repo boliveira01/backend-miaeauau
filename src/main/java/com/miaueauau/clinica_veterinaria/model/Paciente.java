@@ -6,9 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.List; // Importar java.util.List
-import com.fasterxml.jackson.annotation.JsonManagedReference; // JÁ ESTÁ NO Paciente.java
-import com.fasterxml.jackson.annotation.JsonBackReference; // <-- NOVO IMPORT
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Importar
 
 @Entity
 @Table(name = "pacientes")
@@ -34,12 +33,13 @@ public class Paciente {
 
     private Double peso;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // FetchType.EAGER para carregar o tutor imediatamente
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "tutor_id", nullable = false)
-    @JsonBackReference // <-- ADICIONE ESTA ANOTAÇÃO AQUI
+    @JsonIgnoreProperties("pacientes") // Ignora a lista de pacientes dentro do Tutor (lado inverso)
     private Tutor tutor;
 
-    @OneToMany(mappedBy = "paciente", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @OneToMany(mappedBy = "paciente", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("paciente") // Ignora o Paciente dentro da Consulta (lado inverso)
     private List<Consulta> consultas;
 }

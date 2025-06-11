@@ -1,21 +1,26 @@
 package com.miaueauau.clinica_veterinaria.controller;
 
 import com.miaueauau.clinica_veterinaria.model.Consulta;
-import com.miaueauau.clinica_veterinaria.model.Paciente; // NOVO: Importe Paciente
 import com.miaueauau.clinica_veterinaria.model.Veterinario;
+import com.miaueauau.clinica_veterinaria.model.User;
+import com.miaueauau.clinica_veterinaria.model.Tutor;
+import com.miaueauau.clinica_veterinaria.repository.UserRepository;
+import com.miaueauau.clinica_veterinaria.repository.TutorRepository;
+
 import com.miaueauau.clinica_veterinaria.service.ConsultaService;
-import jakarta.validation.Valid; // NOVO: Importe para validação
+import com.miaueauau.clinica_veterinaria.service.VeterinarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult; // NOVO: Importe para capturar erros de validação
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors; // NOVO: Importe para coletar mensagens de erro
 
 @RestController
 @RequestMapping("/api/consultas")
@@ -24,9 +29,13 @@ public class ConsultaController {
     @Autowired
     private ConsultaService consultaService;
 
-    // Remova a injeção direta de VeterinarioService aqui, pois ConsultaService já gerencia isso
-    // @Autowired
-    // private VeterinarioService veterinarioService;
+    @Autowired
+    private VeterinarioService veterinarioService;
+
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private TutorRepository tutorRepository;
 
     @GetMapping
     public ResponseEntity<List<Consulta>> listarTodasConsultas() {
@@ -42,127 +51,78 @@ public class ConsultaController {
     }
 
     @PostMapping
-    public ResponseEntity<?> salvarConsulta(@Valid @RequestBody Consulta consulta, BindingResult result) {
-        if (result.hasErrors()) {
-            List<String> errors = result.getAllErrors().stream()
-                    .map(error -> error.getDefaultMessage())
-                    .collect(Collectors.toList());
-            return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST); // Retorna 400 com erros de validação
-        }
+    public ResponseEntity<Consulta> salvarConsulta(@RequestBody Consulta consulta) {
         try {
             Consulta novaConsulta = consultaService.salvarConsulta(consulta);
-            return new ResponseEntity<>(novaConsulta, HttpStatus.CREATED); // Retorna 201 Created
+            return new ResponseEntity<>(novaConsulta, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            // Captura exceções como "Veterinário não disponível", "Já existe consulta neste horário"
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST); // Retorna 400 Bad Request com a mensagem
-        } catch (RuntimeException e) {
-            // Captura exceções como "Paciente não encontrado", "Veterinário não encontrado"
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND); // Retorna 404 Not Found
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erro interno do servidor ao salvar consulta.", HttpStatus.INTERNAL_SERVER_ERROR); // Retorna 500
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizarConsulta(@PathVariable Long id, @Valid @RequestBody Consulta consultaAtualizada, BindingResult result) {
-        if (result.hasErrors()) {
-            List<String> errors = result.getAllErrors().stream()
-                    .map(error -> error.getDefaultMessage())
-                    .collect(Collectors.toList());
-            return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST); // Retorna 400 com erros de validação
-        }
-        try {
-            // NOVO: Chama o método 'atualizarConsulta' do serviço
-            Consulta consultaSalva = consultaService.atualizarConsulta(id, consultaAtualizada);
-            return new ResponseEntity<>(consultaSalva, HttpStatus.OK); // Retorna 200 OK
-        } catch (IllegalArgumentException e) {
-            // Captura exceções de lógica de negócio (conflitos de horário, indisponibilidade)
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST); // Retorna 400 Bad Request
-        } catch (RuntimeException e) {
-            // Captura exceções como "Consulta não encontrada", "Paciente não encontrado", "Veterinário não encontrado"
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND); // Retorna 404 Not Found
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erro interno do servidor ao atualizar consulta.", HttpStatus.INTERNAL_SERVER_ERROR); // Retorna 500
+    public ResponseEntity<Consulta> atualizarConsulta(@PathVariable Long id, @RequestBody Consulta consultaAtualizada) {
+        Optional<Consulta> consultaExistente = consultaService.buscarConsultaPorId(id);
+        if (consultaExistente.isPresent()) {
+            consultaAtualizada.setId(id);
+            Consulta consultaSalva = consultaService.salvarConsulta(consultaAtualizada);
+            return new ResponseEntity<>(consultaSalva, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletarConsulta(@PathVariable Long id) {
-        try {
+    public ResponseEntity<Void> deletarConsulta(@PathVariable Long id) {
+        Optional<Consulta> consultaExistente = consultaService.buscarConsultaPorId(id);
+        if (consultaExistente.isPresent()) {
             consultaService.deletarConsulta(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT); // Retorna 204 No Content
-        } catch (IllegalArgumentException e) {
-            // Captura exceções como "Consulta com ID X não encontrada para deleção."
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND); // Retorna 404 Not Found
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erro interno do servidor ao deletar consulta.", HttpStatus.INTERNAL_SERVER_ERROR); // Retorna 500
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
 
     @GetMapping("/disponibilidade")
-    public ResponseEntity<?> buscarDisponibilidade(
+    public ResponseEntity<List<Consulta>> buscarDisponibilidade(
             @RequestParam("veterinarioId") Long veterinarioId,
             @RequestParam("inicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
             @RequestParam("fim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fim) {
-        try {
-            // NOVO: O serviço já lida com a busca e validação do veterinário
-            List<Consulta> consultas = consultaService.buscarConsultasPorVeterinarioEPeriodo(veterinarioId, inicio, fim);
+
+        Optional<Veterinario> veterinarioOptional = veterinarioService.buscarVeterinarioPorId(veterinarioId);
+        if (veterinarioOptional.isPresent()) {
+            Veterinario veterinario = veterinarioOptional.get();
+            List<Consulta> consultas = consultaService.buscarConsultasPorVeterinarioEPeriodo(veterinario, inicio, fim);
             return new ResponseEntity<>(consultas, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            // Captura "Veterinário não encontrado" do serviço
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND); // Retorna 404 Not Found
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erro interno do servidor ao buscar disponibilidade.", HttpStatus.INTERNAL_SERVER_ERROR); // Retorna 500
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
 
     @PutMapping("/{id}/confirmar")
-    public ResponseEntity<?> confirmarConsulta(@PathVariable Long id) {
-        try {
-            Consulta consultaConfirmada = consultaService.confirmarConsulta(id);
-            return new ResponseEntity<>(consultaConfirmada, HttpStatus.OK); // Retorna 200 OK
-        } catch (IllegalArgumentException e) {
-            // Captura "A consulta já está confirmada."
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST); // Retorna 400 Bad Request
-        } catch (RuntimeException e) {
-            // Captura "Consulta não encontrada"
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND); // Retorna 404 Not Found
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erro interno do servidor ao confirmar consulta.", HttpStatus.INTERNAL_SERVER_ERROR); // Retorna 500
+    public ResponseEntity<Consulta> confirmarConsulta(@PathVariable Long id) {
+        Consulta consultaConfirmada = consultaService.confirmarConsulta(id);
+        if (consultaConfirmada != null) {
+            return new ResponseEntity<>(consultaConfirmada, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
 
-    // NOVO: Endpoint para buscar consultas por paciente
-    @GetMapping("/por-paciente/{pacienteId}")
-    public ResponseEntity<?> buscarConsultasPorPaciente(@PathVariable Long pacienteId) {
-        try {
-            List<Consulta> consultas = consultaService.buscarConsultasPorPaciente(pacienteId);
-            if (consultas.isEmpty()) {
-                return new ResponseEntity<>("Nenhuma consulta encontrada para o paciente com ID: " + pacienteId, HttpStatus.NOT_FOUND);
-            }
-            return new ResponseEntity<>(consultas, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            // Captura "Paciente não encontrado" do serviço
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND); // Retorna 404 Not Found
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erro interno do servidor ao buscar consultas do paciente.", HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
+    // Endpoint para o tutor ver suas próprias consultas
+    @GetMapping("/minhas-consultas")
+    public ResponseEntity<List<Consulta>> listarMinhasConsultas() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = authentication.getName();
 
-    // Endpoints para adicionar/remover procedimentos da consulta (se necessário)
-    // Esses seriam mais complexos, pois você precisaria de um DTO para receber os IDs dos procedimentos a serem adicionados/removidos.
-    // Exemplo:
-    /*
-    @PutMapping("/{consultaId}/procedimentos")
-    public ResponseEntity<?> adicionarProcedimentos(@PathVariable Long consultaId, @RequestBody List<Long> procedimentoIds) {
-        try {
-            Consulta consultaAtualizada = consultaService.adicionarProcedimentosAConsulta(consultaId, procedimentoIds);
-            return new ResponseEntity<>(consultaAtualizada, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erro ao adicionar procedimentos.", HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        User loggedInUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário logado não encontrado."));
+
+        Tutor tutor = tutorRepository.findById(loggedInUser.getId())
+                .orElseThrow(() -> new RuntimeException("Perfil de Tutor não encontrado para o usuário logado."));
+
+        List<Consulta> minhasConsultas = consultaService.buscarConsultasPorTutor(tutor);
+
+        return new ResponseEntity<>(minhasConsultas, HttpStatus.OK);
     }
-    */
 }

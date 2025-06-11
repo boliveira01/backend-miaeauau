@@ -1,18 +1,24 @@
+// src/main/java/com/miaueauau/clinica_veterinaria/repository/TutorRepository.java
 package com.miaueauau.clinica_veterinaria.repository;
 
 import com.miaueauau.clinica_veterinaria.model.Tutor;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional; // Importe Optional
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TutorRepository extends JpaRepository<Tutor, Long> {
 
-    // --- NOVO: Métodos para buscar e verificar Tutores por CPF e E-mail ---
-    Optional<Tutor> findByCpf(String cpf); // Busca um tutor por CPF
-    Optional<Tutor> findByEmail(String email); // Busca um tutor por E-mail
+    // REMOVA ESTES MÉTODOS SE EXISTIREM AQUI:
+    // Optional<Tutor> findByEmail(String email);
+    // Optional<Tutor> findByCpf(String cpf);
+    // boolean existsByEmail(String email);
+    // boolean existsByCpf(String cpf);
 
-    boolean existsByCpf(String cpf); // Verifica se um tutor com o CPF já existe
-    boolean existsByEmail(String email); // Verifica se um tutor com o E-mail já existe
+    // Mantenha apenas métodos que busquem por campos que REALMENTE estão na entidade Tutor
+    // Por exemplo, você pode ter:
+    // List<Tutor> findByEndereco(String endereco);
+    // Optional<Tutor> findByTelefone(String telefone);
 }

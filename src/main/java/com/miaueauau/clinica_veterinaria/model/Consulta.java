@@ -1,20 +1,17 @@
 package com.miaueauau.clinica_veterinaria.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference; // Já está importado
-import com.fasterxml.jackson.annotation.JsonManagedReference; // Certifique-se que este import também está aqui se já não estiver
-
 import jakarta.persistence.*;
-import jakarta.validation.constraints.FutureOrPresent;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "consultas")
 @Data
@@ -26,35 +23,31 @@ public class Consulta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // FetchType.EAGER para Paciente (sempre queremos o paciente na consulta)
+    @ManyToOne(fetch = FetchType.EAGER) // <<< MUDANÇA AQUI
     @JoinColumn(name = "paciente_id", nullable = false)
-    @NotNull(message = "O paciente da consulta é obrigatório")
-    @JsonBackReference // <-- Esta anotação já deve estar aqui
+    @JsonIgnoreProperties("consultas") // Ignora a lista de Consultas dentro do Paciente
     private Paciente paciente;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // FetchType.EAGER para Veterinario (sempre queremos o veterinário na consulta)
+    @ManyToOne(fetch = FetchType.EAGER) // <<< MUDANÇA AQUI
     @JoinColumn(name = "veterinario_id", nullable = false)
-    @NotNull(message = "O veterinário da consulta é obrigatório")
-    @JsonBackReference // <-- ADICIONE ESTA ANOTAÇÃO AQUI!
+    @JsonIgnoreProperties({"consultas", "disponibilidades"}) // Ignora as listas do Veterinario
     private Veterinario veterinario;
 
     @Column(nullable = false)
-    @NotNull(message = "A data e hora da consulta são obrigatórias")
-    @FutureOrPresent(message = "A data e hora da consulta devem ser futuras ou presentes")
     private LocalDateTime dataHora;
 
-    @NotBlank(message = "O motivo da consulta é obrigatório")
-    @Size(max = 500, message = "O motivo da consulta não pode ter mais de 500 caracteres")
     private String motivo;
 
-    @Size(max = 2000, message = "O diagnóstico não pode ter mais de 2000 caracteres")
     private String diagnostico;
 
-    @Size(max = 2000, message = "O tratamento não pode ter mais de 2000 caracteres")
     private String tratamento;
 
-    @NotNull(message = "O status de confirmação da consulta é obrigatório")
     private boolean confirmada;
+
+    @Column(nullable = false)
+    private String tipoAtendimento;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -62,5 +55,6 @@ public class Consulta {
             joinColumns = @JoinColumn(name = "consulta_id"),
             inverseJoinColumns = @JoinColumn(name = "procedimento_id")
     )
+    @JsonIgnoreProperties("consultas") // Ignora a lista de Consultas dentro do Procedimento
     private List<Procedimento> procedimentos;
 }
