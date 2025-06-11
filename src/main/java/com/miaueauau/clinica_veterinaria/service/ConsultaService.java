@@ -13,8 +13,10 @@ import com.miaueauau.clinica_veterinaria.repository.PacienteRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Importar
-import org.hibernate.Hibernate; // Importar Hibernate
+import org.springframework.transaction.annotation.Transactional;
+import org.hibernate.Hibernate;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 
 import java.time.LocalDate;
@@ -45,68 +47,60 @@ public class ConsultaService {
     @Autowired
     private PacienteRepository pacienteRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
 
+
+    @Transactional // Garante que a sessão esteja aberta para inicialização LAZY
     public List<Consulta> listarTodasConsultas() {
         List<Consulta> consultas = consultaRepository.findAll();
-        // Inicializa lazy collections para que Jackson possa serializar
-        for (Consulta consulta : consultas) {
-            Hibernate.initialize(consulta.getPaciente()); // Garante Paciente EAGER
-            Hibernate.initialize(consulta.getVeterinario()); // Garante Veterinario EAGER
-            // Se Veterinario tem listas LAZY, inicialize-as se precisar
-            if (consulta.getVeterinario() != null) {
-                Hibernate.initialize(consulta.getVeterinario().getConsultas());
-                Hibernate.initialize(consulta.getVeterinario().getDisponibilidades());
-            }
-            // Se Paciente tem listas LAZY, inicialize-as se precisar
-            if (consulta.getPaciente() != null) {
-                Hibernate.initialize(consulta.getPaciente().getConsultas());
-                if (consulta.getPaciente().getTutor() != null) { // Tutor é EAGER no Paciente
-                    Hibernate.initialize(consulta.getPaciente().getTutor().getPacientes()); // Se Tutor tem Pacientes LAZY
-                }
-            }
-            Hibernate.initialize(consulta.getProcedimentos()); // Inicializa lista de Procedimentos
-        }
+        // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
         return consultas;
     }
 
+    @Transactional
     public Optional<Consulta> buscarConsultaPorId(Long id) {
         Optional<Consulta> consultaOptional = consultaRepository.findById(id);
-        consultaOptional.ifPresent(consulta -> {
-            Hibernate.initialize(consulta.getPaciente());
-            Hibernate.initialize(consulta.getVeterinario());
-            if (consulta.getVeterinario() != null) {
-                Hibernate.initialize(consulta.getVeterinario().getConsultas());
-                Hibernate.initialize(consulta.getVeterinario().getDisponibilidades());
-            }
-            if (consulta.getPaciente() != null) {
-                Hibernate.initialize(consulta.getPaciente().getConsultas());
-                if (consulta.getPaciente().getTutor() != null) {
-                    Hibernate.initialize(consulta.getPaciente().getTutor().getPacientes());
-                }
-            }
-            Hibernate.initialize(consulta.getProcedimentos());
-        });
+        // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
         return consultaOptional;
     }
 
     @Transactional
     public Consulta salvarConsulta(Consulta consulta) {
-        if (isVeterinarioDisponivel(consulta.getVeterinario(), consulta.getDataHora(), consulta.getProcedimentos())) {
-            Consulta novaConsulta = consultaRepository.save(consulta);
-            // NOVO: Inicializar coleções após salvar para garantir serialização de retorno
-            Hibernate.initialize(novaConsulta.getPaciente());
-            Hibernate.initialize(novaConsulta.getVeterinario());
-            if (novaConsulta.getVeterinario() != null) {
-                Hibernate.initialize(novaConsulta.getVeterinario().getConsultas());
-                Hibernate.initialize(novaConsulta.getVeterinario().getDisponibilidades());
-            }
-            if (novaConsulta.getPaciente() != null) {
-                Hibernate.initialize(novaConsulta.getPaciente().getConsultas());
-                if (novaConsulta.getPaciente().getTutor() != null) {
-                    Hibernate.initialize(novaConsulta.getPaciente().getTutor().getPacientes());
+        // Obter as entidades relacionadas do banco (se vierem apenas com ID no JSON)
+        // Isso é importante para que o objeto "consulta" que será salvo esteja com as referências gerenciadas
+        if (consulta.getPaciente() != null && consulta.getPaciente().getId() != null) {
+            Paciente paciente = pacienteRepository.findById(consulta.getPaciente().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Paciente não encontrado com ID: " + consulta.getPaciente().getId()));
+            consulta.setPaciente(paciente);
+        }
+        if (consulta.getVeterinario() != null && consulta.getVeterinario().getId() != null) {
+            Veterinario veterinario = veterinarioService.buscarVeterinarioPorId(consulta.getVeterinario().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Veterinário não encontrado com ID: " + consulta.getVeterinario().getId()));
+            consulta.setVeterinario(veterinario);
+        }
+        // Se a lista de procedimentos vier no JSON de entrada, o Hibernate vai gerenciar
+        // mas aqui vamos garantir que eles estejam carregados e anexados se vierem por ID
+        if (consulta.getProcedimentos() != null && !consulta.getProcedimentos().isEmpty()) {
+            List<Procedimento> managedProcedimentos = new ArrayList<>();
+            for (Procedimento proc : consulta.getProcedimentos()) {
+                if (proc.getId() != null) {
+                    Procedimento managedProc = entityManager.find(Procedimento.class, proc.getId());
+                    if (managedProc == null) {
+                        throw new IllegalArgumentException("Procedimento não encontrado com ID: " + proc.getId());
+                    }
+                    managedProcedimentos.add(managedProc);
+                } else {
+                    throw new IllegalArgumentException("Procedimento sem ID não pode ser associado diretamente.");
                 }
             }
-            Hibernate.initialize(novaConsulta.getProcedimentos());
+            consulta.setProcedimentos(managedProcedimentos);
+        }
+
+
+        if (isVeterinarioDisponivel(consulta.getVeterinario(), consulta.getDataHora(), consulta.getProcedimentos())) {
+            Consulta novaConsulta = consultaRepository.save(consulta);
+            // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
             return novaConsulta;
         } else {
             throw new IllegalArgumentException("Veterinário não disponível para a duração total da consulta.");
@@ -114,51 +108,78 @@ public class ConsultaService {
     }
 
     @Transactional
+    public Consulta atualizarConsulta(Long id, Consulta consultaAtualizada) {
+        Optional<Consulta> consultaExistenteOptional = consultaRepository.findById(id);
+        if (consultaExistenteOptional.isEmpty()) {
+            throw new RuntimeException("Consulta não encontrada com o ID: " + id);
+        }
+        Consulta consultaExistente = consultaExistenteOptional.get();
+
+        consultaExistente.setMotivo(consultaAtualizada.getMotivo());
+        consultaExistente.setDiagnostico(consultaAtualizada.getDiagnostico());
+        consultaExistente.setTratamento(consultaAtualizada.getTratamento());
+        consultaExistente.setConfirmada(consultaAtualizada.isConfirmada());
+        consultaExistente.setTipoAtendimento(consultaAtualizada.getTipoAtendimento());
+        consultaExistente.setDataHora(consultaAtualizada.getDataHora());
+
+        if (consultaAtualizada.getPaciente() != null && consultaAtualizada.getPaciente().getId() != null) {
+            Paciente paciente = pacienteRepository.findById(consultaAtualizada.getPaciente().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Paciente não encontrado com ID: " + consultaAtualizada.getPaciente().getId()));
+            consultaExistente.setPaciente(paciente);
+        }
+        if (consultaAtualizada.getVeterinario() != null && consultaAtualizada.getVeterinario().getId() != null) {
+            Veterinario veterinario = veterinarioService.buscarVeterinarioPorId(consultaAtualizada.getVeterinario().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Veterinário não encontrado com ID: " + consultaAtualizada.getVeterinario().getId()));
+            consultaExistente.setVeterinario(veterinario);
+        }
+
+        if (consultaAtualizada.getProcedimentos() != null) {
+            List<Procedimento> managedProcedimentos = new ArrayList<>();
+            for (Procedimento proc : consultaAtualizada.getProcedimentos()) {
+                if (proc.getId() != null) {
+                    Procedimento managedProc = entityManager.find(Procedimento.class, proc.getId());
+                    if (managedProc == null) {
+                        throw new IllegalArgumentException("Procedimento não encontrado com ID: " + proc.getId());
+                    }
+                    managedProcedimentos.add(managedProc);
+                } else {
+                    throw new IllegalArgumentException("Procedimento sem ID não pode ser associado diretamente na atualização.");
+                }
+            }
+            consultaExistente.setProcedimentos(managedProcedimentos);
+        }
+
+
+        if (isVeterinarioDisponivel(consultaExistente.getVeterinario(), consultaExistente.getDataHora(), consultaExistente.getProcedimentos())) {
+            Consulta updatedConsulta = consultaRepository.save(consultaExistente);
+            // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
+            return updatedConsulta;
+        } else {
+            throw new IllegalArgumentException("Veterinário não disponível para a duração total da consulta.");
+        }
+    }
+
+
+    @Transactional
     public void deletarConsulta(Long id) {
         consultaRepository.deleteById(id);
     }
 
+    @Transactional
     public List<Consulta> buscarConsultasPorVeterinarioEPeriodo(Veterinario veterinario, LocalDateTime inicio, LocalDateTime fim) {
         List<Consulta> consultas = consultaRepository.findByVeterinarioAndDataHoraBetween(veterinario, inicio, fim);
-        // Inicializar coleções aqui também se o retorno precisar
-        for (Consulta consulta : consultas) {
-            Hibernate.initialize(consulta.getPaciente());
-            Hibernate.initialize(consulta.getVeterinario());
-            if (consulta.getVeterinario() != null) {
-                Hibernate.initialize(consulta.getVeterinario().getConsultas());
-                Hibernate.initialize(consulta.getVeterinario().getDisponibilidades());
-            }
-            if (consulta.getPaciente() != null) {
-                Hibernate.initialize(consulta.getPaciente().getConsultas());
-                if (consulta.getPaciente().getTutor() != null) {
-                    Hibernate.initialize(consulta.getPaciente().getTutor().getPacientes());
-                }
-            }
-            Hibernate.initialize(consulta.getProcedimentos());
-        }
+        // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
         return consultas;
     }
 
+    @Transactional
     public Consulta confirmarConsulta(Long id) {
         Optional<Consulta> consultaOptional = consultaRepository.findById(id);
         if (consultaOptional.isPresent()) {
             Consulta consulta = consultaOptional.get();
             consulta.setConfirmada(true);
             Consulta confirmedConsulta = consultaRepository.save(consulta);
-            // Inicializar para retorno
-            Hibernate.initialize(confirmedConsulta.getPaciente());
-            Hibernate.initialize(confirmedConsulta.getVeterinario());
-            if (confirmedConsulta.getVeterinario() != null) {
-                Hibernate.initialize(confirmedConsulta.getVeterinario().getConsultas());
-                Hibernate.initialize(confirmedConsulta.getVeterinario().getDisponibilidades());
-            }
-            if (confirmedConsulta.getPaciente() != null) {
-                Hibernate.initialize(confirmedConsulta.getPaciente().getConsultas());
-                if (confirmedConsulta.getPaciente().getTutor() != null) {
-                    Hibernate.initialize(confirmedConsulta.getPaciente().getTutor().getPacientes());
-                }
-            }
-            Hibernate.initialize(confirmedConsulta.getProcedimentos());
+            // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
             return confirmedConsulta;
         }
         return null;
@@ -169,18 +190,17 @@ public class ConsultaService {
         LocalDateTime fimConsulta = dataHora.plusMinutes(30);
 
         if (procedimentos != null && !procedimentos.isEmpty()) {
-            int duracaoProcedimentos = procedimentos.size() * 15;
+            int duracaoProcedimentos = procedimentos.stream().mapToInt(p -> 15).sum();
             inicioConsulta = inicioConsulta.minusMinutes(duracaoProcedimentos / 2);
             fimConsulta = fimConsulta.plusMinutes(duracaoProcedimentos / 2);
         }
 
-        // Antes de buscar, inicialize as coleções do veterinário se ele tiver procedimentos ou consultas lá.
-        // Forçar inicialização para o objeto veterinário para garantir que a consulta funcione
+        // NOVO: Inicializa o veterinário e suas coleções APENAS para a verificação de disponibilidade
         if (veterinario != null) {
+            Hibernate.initialize(veterinario.getUser()); // User do Veterinario
             Hibernate.initialize(veterinario.getConsultas());
             Hibernate.initialize(veterinario.getDisponibilidades());
         }
-
 
         List<DisponibilidadeVeterinario> disponibilidades = disponibilidadeVeterinarioRepository
                 .findByVeterinarioAndInicioLessThanAndFimGreaterThan(veterinario, fimConsulta, inicioConsulta);
@@ -197,24 +217,11 @@ public class ConsultaService {
         List<Paciente> petsDoTutor = pacienteService.buscarPacientesPorTutor(tutor);
         List<Consulta> consultasDoTutor = new ArrayList<>();
         for (Paciente pet : petsDoTutor) {
+            // Garante que o Paciente está carregado se a Consulta o referenciar
+            Hibernate.initialize(pet); // Para evitar proxy em pet
             consultasDoTutor.addAll(consultaRepository.findByPaciente(pet));
         }
-        // Inicializar coleções aqui também se o retorno precisar delas completas
-        for (Consulta consulta : consultasDoTutor) {
-            Hibernate.initialize(consulta.getPaciente());
-            Hibernate.initialize(consulta.getVeterinario());
-            if (consulta.getVeterinario() != null) {
-                Hibernate.initialize(consulta.getVeterinario().getConsultas());
-                Hibernate.initialize(consulta.getVeterinario().getDisponibilidades());
-            }
-            if (consulta.getPaciente() != null) {
-                Hibernate.initialize(consulta.getPaciente().getConsultas());
-                if (consulta.getPaciente().getTutor() != null) {
-                    Hibernate.initialize(consulta.getPaciente().getTutor().getPacientes());
-                }
-            }
-            Hibernate.initialize(consulta.getProcedimentos());
-        }
+        // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
         return consultasDoTutor;
     }
 
@@ -223,22 +230,7 @@ public class ConsultaService {
         Paciente paciente = pacienteRepository.findById(pacienteId)
                 .orElseThrow(() -> new RuntimeException("Paciente não encontrado com o ID: " + pacienteId));
         List<Consulta> consultas = consultaRepository.findByPaciente(paciente);
-        // Inicializar coleções aqui também
-        for (Consulta consulta : consultas) {
-            Hibernate.initialize(consulta.getPaciente());
-            Hibernate.initialize(consulta.getVeterinario());
-            if (consulta.getVeterinario() != null) {
-                Hibernate.initialize(consulta.getVeterinario().getConsultas());
-                Hibernate.initialize(consulta.getVeterinario().getDisponibilidades());
-            }
-            if (consulta.getPaciente() != null) {
-                Hibernate.initialize(consulta.getPaciente().getConsultas());
-                if (consulta.getPaciente().getTutor() != null) {
-                    Hibernate.initialize(consulta.getPaciente().getTutor().getPacientes());
-                }
-            }
-            Hibernate.initialize(consulta.getProcedimentos());
-        }
+        // REMOVIDO: Inicializações complexas aqui. O DTO.fromEntity() no Controller fará isso.
         return consultas;
     }
 
@@ -248,9 +240,13 @@ public class ConsultaService {
 
         List<Consulta> consultasConfirmadas = consultaRepository.findByDataHoraBetweenAndConfirmadaTrue(inicioDateTime, fimDateTime);
 
+        // AQUI pode ser necessário inicializar Procedimentos se eles são LAZY e o DTO precisa deles
         return consultasConfirmadas.stream()
                 .filter(consulta -> consulta.getProcedimentos() != null)
-                .flatMap(consulta -> consulta.getProcedimentos().stream())
+                .flatMap(consulta -> {
+                    Hibernate.initialize(consulta.getProcedimentos()); // Inicializa os procedimentos para o stream
+                    return consulta.getProcedimentos().stream();
+                })
                 .mapToDouble(Procedimento::getPreco)
                 .sum();
     }

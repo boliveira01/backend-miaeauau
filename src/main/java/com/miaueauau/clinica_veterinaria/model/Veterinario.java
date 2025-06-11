@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Importar
+// REMOVER: JsonIdentityInfo, ObjectIdGenerators, JsonIgnoreProperties imports
 
 @Entity
 @Table(name = "veterinarios")
@@ -29,10 +29,9 @@ public class Veterinario {
     @Column(name = "id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true) // Manter EAGER
     @MapsId
     @JoinColumn(name = "id")
-    @JsonIgnoreProperties({"funcionarios", "veterinarios", "tutores"}) // Ignora perfis de User
     private User user;
 
     @Column(nullable = false, unique = true)
@@ -41,15 +40,9 @@ public class Veterinario {
     @Column(nullable = false)
     private String especialidade;
 
-    // CORRIGIDO: Adicionado @JsonIgnoreProperties para Consultas
-    // Ignora a propriedade 'veterinario' DENTRO de CADA CONSULTA na lista 'consultas'.
-    @OneToMany(mappedBy = "veterinario", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("veterinario") // <<< MUDANÇA AQUI
+    @OneToMany(mappedBy = "veterinario", fetch = FetchType.LAZY) // Manter LAZY
     private List<Consulta> consultas;
 
-    // CORRIGIDO: Adicionado @JsonIgnoreProperties para DisponibilidadeVeterinario
-    // Ignora a propriedade 'veterinario' DENTRO de CADA DISPONIBILIDADE na lista 'disponibilidades'.
-    @OneToMany(mappedBy = "veterinario", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("veterinario") // <<< MUDANÇA AQUI
+    @OneToMany(mappedBy = "veterinario", fetch = FetchType.LAZY) // Manter LAZY
     private List<DisponibilidadeVeterinario> disponibilidades;
 }

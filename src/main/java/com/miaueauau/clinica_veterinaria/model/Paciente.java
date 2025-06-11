@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Importar
+// REMOVER: JsonIdentityInfo, ObjectIdGenerators, JsonIgnoreProperties imports
 
 @Entity
 @Table(name = "pacientes")
@@ -33,13 +33,10 @@ public class Paciente {
 
     private Double peso;
 
-    // FetchType.EAGER para carregar o tutor imediatamente
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.EAGER) // MUDANÇA AQUI: EAGER para Paciente.tutor
     @JoinColumn(name = "tutor_id", nullable = false)
-    @JsonIgnoreProperties("pacientes") // Ignora a lista de pacientes dentro do Tutor (lado inverso)
     private Tutor tutor;
 
-    @OneToMany(mappedBy = "paciente", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("paciente") // Ignora o Paciente dentro da Consulta (lado inverso)
+    @OneToMany(mappedBy = "paciente", fetch = FetchType.LAZY) // Manter LAZY
     private List<Consulta> consultas;
 }

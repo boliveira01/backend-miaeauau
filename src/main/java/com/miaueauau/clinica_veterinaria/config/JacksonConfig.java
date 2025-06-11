@@ -9,8 +9,6 @@ public class JacksonConfig {
 
     @Bean
     public Hibernate5JakartaModule hibernate5Module() {
-        // Este módulo ensina Jackson a lidar com proxies do Hibernate e lazy loading.
-        // É a forma mais robusta de lidar com serialização de entidades JPA.
         return new Hibernate5JakartaModule();
     }
 }

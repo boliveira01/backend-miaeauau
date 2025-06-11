@@ -8,8 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
-// REMOVER: import com.fasterxml.jackson.annotation.JsonManagedReference;
-// REMOVER: import com.fasterxml.jackson.annotation.JsonBackReference;
+// REMOVER: JsonIdentityInfo, ObjectIdGenerators, JsonIgnoreProperties imports
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -41,6 +41,4 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
-
-    // REMOVIDOS AQUI quaisquer @JsonManagedReference ou @JsonBackReference
 }

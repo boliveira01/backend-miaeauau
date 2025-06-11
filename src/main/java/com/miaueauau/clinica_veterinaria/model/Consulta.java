@@ -7,11 +7,8 @@ import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+// REMOVER: JsonIdentityInfo, ObjectIdGenerators, JsonIgnoreProperties imports
 
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "consultas")
 @Data
@@ -23,16 +20,12 @@ public class Consulta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // FetchType.EAGER para Paciente (sempre queremos o paciente na consulta)
-    @ManyToOne(fetch = FetchType.EAGER) // <<< MUDANÇA AQUI
+    @ManyToOne(fetch = FetchType.EAGER) // MUDANÇA AQUI: EAGER para Paciente
     @JoinColumn(name = "paciente_id", nullable = false)
-    @JsonIgnoreProperties("consultas") // Ignora a lista de Consultas dentro do Paciente
     private Paciente paciente;
 
-    // FetchType.EAGER para Veterinario (sempre queremos o veterinário na consulta)
-    @ManyToOne(fetch = FetchType.EAGER) // <<< MUDANÇA AQUI
+    @ManyToOne(fetch = FetchType.EAGER) // MUDANÇA AQUI: EAGER para Veterinario
     @JoinColumn(name = "veterinario_id", nullable = false)
-    @JsonIgnoreProperties({"consultas", "disponibilidades"}) // Ignora as listas do Veterinario
     private Veterinario veterinario;
 
     @Column(nullable = false)
@@ -49,12 +42,11 @@ public class Consulta {
     @Column(nullable = false)
     private String tipoAtendimento;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.LAZY) // Manter LAZY
     @JoinTable(
             name = "consulta_procedimento",
             joinColumns = @JoinColumn(name = "consulta_id"),
             inverseJoinColumns = @JoinColumn(name = "procedimento_id")
     )
-    @JsonIgnoreProperties("consultas") // Ignora a lista de Consultas dentro do Procedimento
     private List<Procedimento> procedimentos;
 }

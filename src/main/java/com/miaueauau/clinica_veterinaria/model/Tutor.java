@@ -8,11 +8,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo; // NOVO
-import com.fasterxml.jackson.annotation.ObjectIdGenerators; // NOVO
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Importar
+// REMOVER: JsonIdentityInfo, ObjectIdGenerators, JsonIgnoreProperties imports
 
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "tutores")
 @Data
@@ -24,10 +21,9 @@ public class Tutor {
     @Column(name = "id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true) // Manter EAGER
     @MapsId
     @JoinColumn(name = "id")
-    @JsonIgnoreProperties({"funcionarios", "veterinarios", "tutores"}) // Ignora outros perfis dentro do User
     private User user;
 
     private LocalDate dataNascimento;
@@ -38,8 +34,6 @@ public class Tutor {
     @Column(nullable = false)
     private String telefone;
 
-    // Manter LAZY, e JsonIgnoreProperties para Pacientes
-    @OneToMany(mappedBy = "tutor", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("tutor") // Ignora o Tutor dentro de cada Paciente na lista (lado inverso)
+    @OneToMany(mappedBy = "tutor", fetch = FetchType.LAZY) // Manter LAZY
     private List<Paciente> pacientes = new ArrayList<>();
 }

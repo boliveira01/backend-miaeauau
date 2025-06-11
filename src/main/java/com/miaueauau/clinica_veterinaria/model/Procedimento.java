@@ -10,11 +10,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+// REMOVER: JsonIdentityInfo, ObjectIdGenerators, JsonIgnoreProperties imports
 
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "procedimentos")
 @Data
@@ -38,9 +35,6 @@ public class Procedimento {
     @Positive(message = "O preço do procedimento deve ser um valor positivo")
     private Double preco;
 
-    // CORRIGIDO: Adicionado @JsonIgnoreProperties para Consultas
-    // Ignora a propriedade 'procedimentos' DENTRO de CADA CONSULTA da lista 'consultas'.
-    @ManyToMany(mappedBy = "procedimentos", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("procedimentos") // <<-- ADICIONE ESTA ANOTAÇÃO AQUI
+    @ManyToMany(mappedBy = "procedimentos", fetch = FetchType.LAZY) // Manter LAZY
     private List<Consulta> consultas;
 }

@@ -5,8 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// REMOVER: import com.fasterxml.jackson.annotation.JsonBackReference;
-// REMOVER: import com.fasterxml.jackson.annotation.JsonManagedReference;
+// REMOVER: JsonIdentityInfo, ObjectIdGenerators, JsonIgnoreProperties imports
 
 @Entity
 @Table(name = "funcionarios")
@@ -19,10 +18,9 @@ public class Funcionario {
     @Column(name = "id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true) // Manter EAGER
     @MapsId
     @JoinColumn(name = "id")
-    // REMOVER: @JsonManagedReference("user-funcionario")
     private User user;
 
     @Column(nullable = false)

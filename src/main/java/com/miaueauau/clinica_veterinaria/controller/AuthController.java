@@ -1,4 +1,3 @@
-// src/main/java/com/miaueauau/clinica_veterinaria/controller/AuthController.java
 package com.miaueauau.clinica_veterinaria.controller;
 
 import com.miaueauau.clinica_veterinaria.dto.LoginRequest;
@@ -6,12 +5,12 @@ import com.miaueauau.clinica_veterinaria.dto.RegisterRequest;
 import com.miaueauau.clinica_veterinaria.model.User;
 import com.miaueauau.clinica_veterinaria.model.UserRole;
 import com.miaueauau.clinica_veterinaria.model.Funcionario;
-import com.miaueauau.clinica_veterinaria.model.Tutor; // Importe Tutor
-import com.miaueauau.clinica_veterinaria.model.Veterinario; // Importe Veterinario
+import com.miaueauau.clinica_veterinaria.model.Tutor;
+import com.miaueauau.clinica_veterinaria.model.Veterinario;
 import com.miaueauau.clinica_veterinaria.repository.UserRepository;
 import com.miaueauau.clinica_veterinaria.repository.FuncionarioRepository;
-import com.miaueauau.clinica_veterinaria.repository.TutorRepository; // Injete TutorRepository
-import com.miaueauau.clinica_veterinaria.repository.VeterinarioRepository; // Injete VeterinarioRepository
+import com.miaueauau.clinica_veterinaria.repository.TutorRepository;
+import com.miaueauau.clinica_veterinaria.repository.VeterinarioRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,7 +31,8 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException; // Importe este
+import org.springframework.web.bind.MethodArgumentNotValidException; // NOVO: Importar esta exceção
 
 
 @RestController
@@ -48,7 +48,7 @@ public class AuthController {
     @Autowired
     private FuncionarioRepository funcionarioRepository;
 
-    @Autowired // Injete TutorRepository
+    @Autowired
     private TutorRepository tutorRepository;
 
     @Autowired
@@ -91,12 +91,18 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> registerUser(@Valid @RequestBody RegisterRequest registerRequest, BindingResult result) {
+        // NOVO: Bloco para depurar erros de validação
         if (result.hasErrors()) {
             Map<String, String> errors = new HashMap<>();
-            result.getFieldErrors().forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
+            System.err.println("DEBUG (Register): Erros de validação:");
+            result.getFieldErrors().forEach(error -> {
+                errors.put(error.getField(), error.getDefaultMessage());
+                System.err.println("  - Campo: " + error.getField() + ", Erro: " + error.getDefaultMessage() + ", Valor rejeitado: " + error.getRejectedValue());
+            });
             return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
         }
 
+        // Validações de unicidade (se o front-end passar, significa que não falhou validação de @NotBlank)
         if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", "E-mail já cadastrado.");
@@ -113,38 +119,35 @@ public class AuthController {
         newUser.setNome(registerRequest.getNome());
         newUser.setSobrenome(registerRequest.getSobrenome());
         newUser.setEmail(registerRequest.getEmail());
-        newUser.setPassword(registerRequest.getPassword());
+        newUser.setPassword(registerRequest.getPassword()); // A senha deve ser criptografada aqui em um projeto real
         newUser.setCpf(registerRequest.getCpf());
         newUser.setRole(registerRequest.getRole());
 
         User savedUser = userRepository.save(newUser);
 
         // 2. Lógica para criar o perfil específico (Funcionario, Tutor, Veterinario)
-        // com base na role escolhida no registro.
-        // O ID do perfil será o mesmo ID do User salvo.
-
         if (savedUser.getRole() == UserRole.ROLE_ADMIN || savedUser.getRole() == UserRole.ROLE_FUNCIONARIO) {
             Funcionario newFuncionario = new Funcionario();
             newFuncionario.setId(savedUser.getId());
             newFuncionario.setUser(savedUser);
-            newFuncionario.setCargo("Atendente"); // Cargo padrão
-            newFuncionario.setAdministrador(savedUser.getRole() == UserRole.ROLE_ADMIN); // Admin se a role for ADMIN
+            newFuncionario.setCargo("Atendente");
+            newFuncionario.setAdministrador(savedUser.getRole() == UserRole.ROLE_ADMIN);
             funcionarioRepository.save(newFuncionario);
         } else if (savedUser.getRole() == UserRole.ROLE_VETERINARIO) {
             Veterinario newVeterinario = new Veterinario();
             newVeterinario.setId(savedUser.getId());
             newVeterinario.setUser(savedUser);
-            newVeterinario.setCrmv("A definir"); // CRMV padrão
-            newVeterinario.setEspecialidade("A definir"); // Especialidade padrão
+            newVeterinario.setCrmv("A definir");
+            newVeterinario.setEspecialidade("A definir");
             veterinarioRepository.save(newVeterinario);
         } else if (savedUser.getRole() == UserRole.ROLE_TUTOR) {
             Tutor newTutor = new Tutor();
             newTutor.setId(savedUser.getId());
             newTutor.setUser(savedUser);
-            newTutor.setEndereco(registerRequest.getEndereco()); // Tutor tem endereco e telefone no RegisterRequest
+            // Estes campos vêm do RegisterRequest
+            newTutor.setEndereco(registerRequest.getEndereco());
             newTutor.setTelefone(registerRequest.getTelefone());
-            // Se dataNascimento é obrigatória para Tutor e não foi movida para User, adicione no RegisterRequest e aqui:
-            // newTutor.setDataNascimento(registerRequest.getDataNascimento());
+            // newTutor.setDataNascimento(registerRequest.getDataNascimento()); // Se tiver no DTO e for obrigatório
             tutorRepository.save(newTutor);
         }
 
