@@ -1,3 +1,13 @@
+## Nomes dos integrantes:
+Bruno Martins Oliveira
+Gabriel Ferreira    
+Maria Clara Campos Profeta
+Giovanna Salem Gonella
+Caroline Cristine de Souza
+Richard Martins Costa Santos
+Guilherme Fernandes Dario de Carvalho
+Matheus Gustavo da Silva Santos
+
 ## 🚀 README Miau&Auau 🚀
 
 Este README fornece instruções sobre como instalar e executar este projeto.
